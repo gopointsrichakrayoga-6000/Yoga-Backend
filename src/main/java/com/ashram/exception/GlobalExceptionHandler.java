@@ -1,5 +1,8 @@
 package com.ashram.exception;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -15,6 +18,11 @@ import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    @Value("${spring.profiles.active:default}")
+    private String activeProfile;
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleResourceNotFound(ResourceNotFoundException ex) {
@@ -49,7 +57,11 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGlobalException(Exception ex) {
-        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Internal Server Error", ex.getMessage());
+        logger.error("Unhandled exception caught in GlobalExceptionHandler: ", ex);
+        String safeMessage = "prod".equalsIgnoreCase(activeProfile) || "production".equalsIgnoreCase(activeProfile)
+                ? "An unexpected internal error occurred while processing your request. Please contact ashram support."
+                : "Internal Error (" + ex.getClass().getSimpleName() + "): " + ex.getMessage();
+        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Internal Server Error", safeMessage);
     }
 
     private ResponseEntity<Map<String, Object>> buildResponse(HttpStatus status, String error, String message) {
